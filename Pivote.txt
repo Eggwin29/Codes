@@ -1,0 +1,59 @@
+Set pivoteTAFRS = cachePivot.CreatePivotTable( _
+    TableDestination:=wsPivot.Cells(5, spacing), _
+    TableName:="Pivot_Top_Aged")
+
+With pivoteTAFRS
+    .ManualUpdate = True
+    
+    ' 1. Configurar Filtros de Página / Columnas / Valores
+    .PivotFields("SUMMARY").Orientation = xlPageField
+    .PivotFields("FG AGING BUCKET value").Orientation = xlColumnField
+    .AddDataField .PivotFields("OPEN QTY"), "Suma de OPEN QTY", xlSum
+    
+    ' 2. Configurar Campos de Fila en orden exacto
+    .PivotFields("COMPLEXITY CATEGORY").Orientation = xlRowField
+    .PivotFields("HPE RESTRICTIONS").Orientation = xlRowField
+    .PivotFields("SOLD TO JK03").Orientation = xlRowField
+    .PivotFields("SO HPE").Orientation = xlRowField
+    .PivotFields("PO").Orientation = xlRowField
+    
+    ' 3. ESTO ES LO QUE QUITA LOS TOTALES EXTRA Y LA AMPLITUD EXCESIVA:
+    ' Desactivar subtotales para cada campo de fila para que no inflen la tabla
+    On Error Resume Next
+    .PivotFields("COMPLEXITY CATEGORY").Subtotals(1) = False
+    .PivotFields("HPE RESTRICTIONS").Subtotals(1) = False
+    .PivotFields("SOLD TO JK03").Subtotals(1) = False
+    .PivotFields("SO HPE").Subtotals(1) = False
+    On Error GoTo 0
+    
+    ' 4. Diseño Tabular
+    .RowAxisLayout xlTabularRow
+    .ColumnGrand = True
+    .RowGrand = True
+    
+    ' 5. Aplicar tus filtros iniciales (Ej: solo SERVERS)
+    .PivotFields("COMPLEXITY CATEGORY").ClearAllFilters
+    .PivotFields("COMPLEXITY CATEGORY").PivotFilters.Add Type:=xlCaptionEquals, Value1:="SERVERS"
+    
+    ' Ocultar "0 Days" y "1 to 4" en columnas
+    Dim itemBucket As PivotItem
+    On Error Resume Next
+    For Each itemBucket In .PivotFields("FG AGING BUCKET value").PivotItems
+        If itemBucket.Name = "0 Days" Or itemBucket.Name = "1 to 4" Then
+            itemBucket.Visible = False
+        Else
+            itemBucket.Visible = True
+        End If
+    Next itemBucket
+    On Error GoTo 0
+    
+    .ManualUpdate = False
+End With
+
+' Estilo visual limpio
+On Error Resume Next
+pivoteTAFRS.TableStyle2 = "PivotStyleMedium2"
+On Error GoTo 0
+
+wsPivot.Parent.Windows(1).DisplayGridlines = True
+wsPivot.Columns.AutoFit
